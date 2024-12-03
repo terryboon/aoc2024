@@ -1,10 +1,10 @@
 import re
 
 def parse_file(in_filename):
-# Parse input file and return a list of the reports (where each report is a lists of integers)
+# Parse input file and return a list of the lines in the text file
 
-    in_file = open(in_filename)
-    lines = [L for L in in_file]
+    f_in = open(in_filename)
+    lines = [L.strip() for L in f_in]
     return(lines)
 
 def calculate_result_1(lines):
@@ -22,6 +22,7 @@ def calculate_result_2(lines):
     return result
 
 def extract_muls(s):
+# From text string, return a list of 2-tuples with the int arguments of each mul(x,y) 
     muls = []
     matches = re.findall(r'mul\((\d{1,3}),(\d{1,3})\)', s)
     for m in matches:
@@ -29,10 +30,14 @@ def extract_muls(s):
     return muls
 
 def extract_instructions(s):
+# From text string, return a list of instructions, which may be
+# "mul(x,y)", "do()", or "don't" 
     instructions = re.findall(r'do\(\)|don\'t\(\)|mul\(\d{1,3},\d{1,3}\)', s)
     return(instructions)
 
 def process_instructions(instructions):
+# Proces list of instructions (in form from extract_instructions()) and calculate total
+
     result = 0
     enabled = True
 
