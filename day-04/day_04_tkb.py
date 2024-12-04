@@ -11,21 +11,14 @@ def calculate_result_1(grid):
 
     gridlines = generate_gridlines(grid)
     
-    result = 0
-    result = result + sum(line.count(target) for line in gridlines)
-    result = result + sum(line.count(target_rev) for line in gridlines)
+    result = sum(line.count(target) for line in gridlines) + sum(line.count(target_rev) for line in gridlines) 
 
     return result
 
 def calculate_result_2(grid):
     rows = len(grid)
     cols = len(grid[0])
-
-    result = 0
-    for row in range(1, rows - 1):
-        for col in range(1, cols - 1):
-            if is_x_mas(grid, row, col):
-                result = result + 1
+    result = sum(is_x_mas(grid, row, col) for row in range(1, rows - 1) for col in range(1, cols - 1))    
     return result
 
 def is_x_mas(grid, row, col):
