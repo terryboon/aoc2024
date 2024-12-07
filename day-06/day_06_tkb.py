@@ -1,3 +1,6 @@
+from copy import deepcopy
+
+# We encode directions as int 0-3. Below is mapping from these to coordinate steps (for row and column).
 dirs = [(0, +1), (+1, 0), (0, -1), (-1, 0)]
 
 class data:
@@ -26,15 +29,31 @@ def parse_file(in_filename):
     return data(grid, start_row, start_col, start_dir)
 
 def calculate_result_1(in_data):
+    (grid_visited, _) = generate_final_state(in_data)
+    return sum([any(grid_visited[r][c][d] for d in range(4))
+                for r in range(in_data.rows) for c in range(in_data.cols)])
 
-    (grid_visited, is_loop) = generate_final_state(in_data)
+def calculate_result_2(in_data):
+    (grid_visited, _) = generate_final_state(in_data)
 
-    num_cells_visited = sum([any(grid_visited[r][c][d] for d in range(4))
-                         for r in range(in_data.rows) for c in range(in_data.cols)])
-    return(num_cells_visited)
+    # Generate candidates for block: the cells the guard visited, except for the starting one.
+    block_cands = {(row, col) for row in range(in_data.rows) for col in range(in_data.cols)
+                   if any(grid_visited[row][col]) and not(row == in_data.start_row and col == in_data.start_col)}
+
+    # For each candidate, produce a new initial set of data adding the block, and check if it results in loop
+    result = 0
+    while block_cands:
+        (block_row, block_col) = block_cands.pop()
+        updated_grid = deepcopy(in_data.grid)
+        updated_grid[block_row][block_col] = "#"
+        updated_in_data = data(updated_grid, in_data.start_row, in_data.start_col, in_data.start_dir)
+        (_, is_loop) = generate_final_state(updated_in_data)
+        if is_loop:
+            result = result + 1
+    return result
 
 def generate_final_state(in_data):
-    # Generate and return
+    # Based on initial state in in_data, generate and return
     #   grid_visited[row][col][dir] with "True" where guard has been
     #   is_loop which is True if the guard is in a loop
 
@@ -60,6 +79,7 @@ def generate_final_state(in_data):
 
 
 def step(in_data, row, col, dir):
+    # Return next row, col, and direction after next step taken, based on current values and the grid in the initial state 
     row_next = row + dirs[dir][0]
     col_next = col + dirs[dir][1]
     if (row_next < 0 or row_next >= in_data.rows) or (col_next < 0 or col_next >= in_data.cols):
@@ -69,35 +89,6 @@ def step(in_data, row, col, dir):
     elif in_data.grid[row_next][col_next] == ".":
         return((row_next, col_next, dir))
     raise(ValueError)
-    
-
-def calculate_result_2(in_data):
-    (grid_visited, _) = generate_final_state(in_data)
-
-    # Generate candidates for block: the cell "in front" of each position the guard takes (if not blocked)
-    block_cands = set()
-    for row in range(in_data.rows):
-        for col in range(in_data.cols):
-            for dir in range(4):
-                if grid_visited[row][col][dir]:
-                    row_next = row + dirs[dir][0]
-                    col_next = col + dirs[dir][1]
-                    if ((0 <= row_next and row_next < in_data.rows) and
-                        (0 <= col_next and col_next < in_data.cols) and
-                        (in_data.grid[row_next][col_next] == ".")):
-                        block_cands.add((row_next, col_next))
-    
-    # For each candidate, check if loop
-    result = 0
-    while block_cands:
-        (block_row, block_col) = block_cands.pop()
-        updated_grid = [[in_data.grid[row][col] for col in range(in_data.cols)] for row in range(in_data.rows)]
-        updated_grid[block_row][block_col] = "#"
-        updated_in_data = data(updated_grid, in_data.start_row, in_data.start_col, in_data.start_dir)
-        (_, is_loop) = generate_final_state(updated_in_data)
-        if is_loop:
-            result = result + 1
-    return result
 
 # Test code
 data_test = parse_file("day-06/input-test.txt")
@@ -116,5 +107,5 @@ in_data = parse_file("day-06/input.txt")
 result = calculate_result_1(in_data)
 print("Part 1 result: %s" % result)
 
-#result = calculate_result_2(in_data)
-#print("Part 2 result: %s" % result)
+result = calculate_result_2(in_data)
+print("Part 2 result: %s" % result)
