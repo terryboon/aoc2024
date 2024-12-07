@@ -1,10 +1,16 @@
 from collections import defaultdict
-from collections import Counter
 
 class in_data:
     def __init__(self, rules, updates):
-        self.rules = rules
-        self.updates = updates
+        self.rules = rules      # list of ordered pairs, one for each rule provided
+        self.updates = updates  # list of list of ints (page numbers)
+
+        # Generate self.rules_dict (do it here for efficiency)
+        # mapping each rule element to a set of elements of its successors
+        self.rules_successors = defaultdict(set)
+        for (k, v) in rules:
+            self.rules_successors[k].add(v)
+
 
 def parse_file(in_filename):
 # Parse input file and return an in_data object containing the rules and the updates
@@ -25,75 +31,61 @@ def parse_file(in_filename):
     return(in_data(rules, updates))
 
 def calculate_result_1(in_data):
-    # Process rules
-    rules_dict = defaultdict(set)
-    for (k, v) in in_data.rules:
-        rules_dict[k].add(v)
-
     # Return the sum of the middle page numbers for each update which is OK.
-    return sum(update[int((len(update) - 1)/2)] for update in in_data.updates
-               if is_update_ok(rules_dict, update))
+    return sum(update[int((len(update) - 1)/2)] 
+               for update in in_data.updates
+               if is_update_ok(in_data, update))
 
 def calculate_result_2(in_data):
-    # Process rules
-    rules_dict = defaultdict(set)
-    for (k, v) in in_data.rules:
-        rules_dict[k].add(v)
 
-    bad_updates = [update for update in in_data.updates if not(is_update_ok(rules_dict, update))]
+    bad_updates = [update for update in in_data.updates if not(is_update_ok(in_data, update))]
 
     result = 0
     for update in bad_updates:
-        # Generate subset of relevant rules i.e. those where both elements of the rule are in the update
-        rules_subset = [(x, y) for (x, y) in in_data.rules if (x in update and y in update)]
-
-        rules_subset = extract_rules(in_data.rules, update)
-        rules_order = topological_sort(rules_subset)
-        result = result + rules_order[int((len(rules_order) - 1)/2)]
+        # Generate list of relevant rules i.e. those where both elements of the rule are in the update
+        update_rules = [(x, y) for (x, y) in in_data.rules if (x in update and y in update)]
+        sorted_update = topological_sort(update_rules)
+        result = result + sorted_update[(len(sorted_update) - 1)//2]
     return result
 
-def extract_rules(rules, update):
-    # Generate subset of rules where both elements of the rule are in the update
-    update_set = set(update)
-    rules_subset = [(x, y) for (x, y) in rules if (x in update_set and y in update_set)]
-    return rules_subset
-
 def topological_sort(in_rules):
+    # Given list of ordered pairs for rules,
+    # return a list of nodes which is consistent with the ordering defined by the rules
+    # using topological sort.
     rules = in_rules[:]
-    L = []
-    S = set()
+    sorted_list = []
+    unprocessed_minimal_nodes = set()
     nodes = set()
     for (x, y) in rules:
         nodes.add(x)
         nodes.add(y)
 
-    # Populate S
-    c = Counter([y for (x, y) in rules])
-    for x in nodes:
-        if c[x] == 0:
-            S.add(x)
-    
-    while S:
-        n = S.pop()
-        L.append(n)
-        ms = [m for m in nodes if (n, m) in rules]
-        for m in ms:
-            rules.remove((n, m))
-            edges = [(x, y) for (x, y) in rules if y == m]
-            if len(edges) == 0:
-                S.add(m)
+    # Populate unprocessed_minimal_nodes (S)
+    unprocessed_minimal_nodes = nodes.copy()
+    for (x, y) in rules:
+        unprocessed_minimal_nodes.discard(y)
+
+    while unprocessed_minimal_nodes:
+        n = unprocessed_minimal_nodes.pop()
+        sorted_list.append(n)
+        n_successors = [m for m in nodes if (n, m) in rules]
+        for n_succ in n_successors:
+            rules.remove((n, n_succ))
+            edges_to_n_succ = [(x, y) for (x, y) in rules if y == n_succ]
+            if len(edges_to_n_succ) == 0:
+                unprocessed_minimal_nodes.add(n_succ)
     
     if len(rules) > 0:
-        print("ERROR")
+        raise(ValueError)   # Indicates loop
     else:
-        return L
+        return sorted_list
 
-def is_update_ok(rules_dict, update):
-    predecessors = set()
+def is_update_ok(in_data, update):
+    # Return whether the update is OK given the rules in in_data
+    update_predecessors = set()
     for i in range(1, len(update)):
-        #print(update)
-        predecessors.add(update[i-1])
-        if not(predecessors.isdisjoint(rules_dict[update[i]])):
+        update_predecessors.add(update[i-1])
+        if not(update_predecessors.isdisjoint(in_data.rules_successors[update[i]])):
             return False
     return True
 
